@@ -42,6 +42,17 @@ shadowJar() {
     configurations = [project.configurations.shade]
 
     archiveClassifier = ''
+
+    ArrayList<String> packagesToRelocate = [
+            'cc.carm.lib.configuration',
+            'cc.carm.lib.easyplugin',
+            'cc.carm.lib.mineconfiguration',
+            'cc.carm.lib.yamlcommentupdater',
+            'com.cryptomorin.xseries',
+    ]
+    packagesToRelocate.forEach() {
+        relocate(it, "cn.flowerinsnow.grandpacleaner.shaded.$it")
+    }
 }
 
 processResources() {
