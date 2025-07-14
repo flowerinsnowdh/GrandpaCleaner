@@ -15,62 +15,43 @@
  */
 package cn.flowerinsnow.grandpacleaner.command;
 
-import cn.flowerinsnow.grandpacleaner.GrandpaCleanerPlugin;
-import cn.flowerinsnow.grandpacleaner.feature.RecycleBinGUI;
+import cn.flowerinsnow.grandpacleaner.Main;
 import cn.flowerinsnow.grandpacleaner.task.CleanTask;
 import cn.flowerinsnow.grandpacleaner.util.LogUtil;
 import com.mojang.brigadier.Command;
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
-import org.bukkit.entity.Player;
+import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
 
 public class CommandGrandpaCleaner {
-    public static void register(@NotNull GrandpaCleanerPlugin plugin) {
+    public static void register(@NotNull Main plugin) {
         plugin.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             Commands commands = event.registrar();
             commands.register(
                     Commands.literal("grandpacleaner")
-                            .then(
-                                    Commands.literal("reload")
+                            .then(Commands.literal("reload")
                                             .requires(commandSourceStack -> commandSourceStack.getSender().hasPermission("grandpacleaner.reload"))
                                             .executes(context -> {
                                                 try {
                                                     plugin.reload();
-                                                    plugin.getConfiguration().messages.command.reload.success.send(context.getSource().getSender());
-                                                    return Command.SINGLE_SUCCESS;
+                                                    plugin.getConfiguration().messages.command.reload.success.sendTo(context.getSource().getSender());
                                                 } catch (Exception e) {
                                                     LogUtil.throwing(plugin.getLogger(), e);
-                                                    plugin.getConfiguration().messages.command.reload.failed.send(context.getSource().getSender());
-                                                    return 0;
-                                                }
-                                            })
-                            )
-                            .then(
-                                    Commands.literal("recycle")
-                                            .requires(commandSourceStack -> commandSourceStack.getSender().hasPermission("grandpacleaner.recycle") && plugin.getConfiguration().enable.getNotNull())
-                                            .executes(context -> {
-                                                RecycleBinGUI gui = RecycleBinGUI.ofRecycleBin(plugin.getCleanTask().getRecycleBin(), plugin.getCleanTask().recycleBinLock);
-                                                gui.init();
-                                                if (context.getSource().getExecutor() instanceof Player player) {
-                                                    gui.openGUI(player);
-                                                } else {
-                                                    plugin.getConfiguration().messages.command.console.send(context.getSource().getSender());
+                                                    plugin.getConfiguration().messages.command.reload.failed.sendTo(context.getSource().getSender());
                                                 }
                                                 return Command.SINGLE_SUCCESS;
                                             })
-                            )
-                            .then(
+                            ).then(
                                     Commands.literal("delay")
                                             .requires(commandSourceStack -> commandSourceStack.getSender().hasPermission("grandpacleaner.delay") && plugin.getConfiguration().enable.getNotNull())
                                             .executes(contenxt -> {
                                                 CleanTask task = plugin.getCleanTask();
-                                                task.setCountdown(task.getCountdown() + plugin.getConfiguration().delayTime.getNotNull());
-                                                plugin.getConfiguration().messages.command.delayed.broadcast();
+                                                task.countdown(task.countdown() + plugin.getConfiguration().delayTime.getNotNull());
+                                                plugin.getConfiguration().messages.command.delayed.sendToAll(Bukkit.getOnlinePlayers());
                                                 return Command.SINGLE_SUCCESS;
                                             })
-                            )
-                            .build()
+                            ).build()
             );
         });
     }

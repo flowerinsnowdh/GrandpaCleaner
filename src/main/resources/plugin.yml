@@ -1,6 +1,6 @@
-main: cn.flowerinsnow.grandpacleaner.GrandpaCleanerPlugin
-name: GrandpaCleanerPlugin
-version: '${version}'
-api-version: 1.21.4
+main: cn.flowerinsnow.grandpacleaner.Main
+name: GrandpaCleaner
+version: ${version}
+api-version: 1.21.7
 author: flowerinsnow
 folia-supported: true

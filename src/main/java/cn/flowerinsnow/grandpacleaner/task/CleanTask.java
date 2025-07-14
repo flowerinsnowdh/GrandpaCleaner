@@ -15,97 +15,119 @@
  */
 package cn.flowerinsnow.grandpacleaner.task;
 
-import cn.flowerinsnow.grandpacleaner.GrandpaCleanerPlugin;
+import cn.flowerinsnow.grandpacleaner.Main;
 import cn.flowerinsnow.grandpacleaner.config.Config;
-import cn.flowerinsnow.grandpacleaner.feature.RecycleBin;
+import cn.flowerinsnow.grandpacleaner.util.AtomicCounter;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
-import org.bukkit.World;
+import org.bukkit.craftbukkit.entity.CraftMob;
 import org.bukkit.entity.Item;
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.entity.Mob;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Range;
 
 import java.util.*;
 import java.util.function.Consumer;
 
-public class CleanTask implements Consumer<ScheduledTask> {
-    @NotNull private final GrandpaCleanerPlugin plugin;
+public final class CleanTask implements Consumer<ScheduledTask> {
+    @NotNull private final Main plugin;
     private final int period;
     @NotNull private final List<Integer> notifyOn;
     @NotNull private final List<String> excludeList;
     @NotNull private final Config.Messages messages;
 
-    @NotNull private RecycleBin recycleBin;
     private int countdown;
-    @NotNull public final Object recycleBinLock = new Object();
-    private int counter;
+    @NotNull public final Object lock = new Object();
+    private int taskCounter;
 
-    public CleanTask(@NotNull GrandpaCleanerPlugin plugin, int period, @NotNull List<Integer> notifyOn, @NotNull List<String> excludeList, @NotNull Config.Messages messages) {
+    public CleanTask(@NotNull Main plugin, int period, @NotNull List<Integer> notifyOn, @NotNull List<String> excludeList, @NotNull Config.Messages messages) {
         this.plugin = plugin;
         this.period = period;
         this.notifyOn = Objects.requireNonNull(notifyOn);
         this.excludeList = Objects.requireNonNull(excludeList);
         this.messages = Objects.requireNonNull(messages);
-        this.recycleBin = new RecycleBin(new ArrayList<>());
         this.countdown = period;
     }
 
-    public @NotNull RecycleBin getRecycleBin() {
-        return this.recycleBin;
-    }
-
-    public synchronized int getCountdown() {
+    @Contract(pure = true)
+    public synchronized @Range(from = 0L, to = Integer.MAX_VALUE) int countdown() {
         return this.countdown;
     }
 
-    public synchronized void setCountdown(int countdown) {
+    @Contract("_ -> this")
+    public synchronized @NotNull CleanTask countdown(@Range(from = 0L, to = Integer.MAX_VALUE) int countdown) {
         this.countdown = countdown;
+        return this;
     }
 
-    public synchronized void countdown() {
+    @Contract("-> this")
+    public synchronized @NotNull CleanTask doCountdown() {
         this.countdown--;
+        return this;
     }
 
     @Override
     public void accept(ScheduledTask scheduledTask) {
-        int countdown = this.getCountdown();
-        if (this.notifyOn.contains(countdown)) {
-            this.messages.notify.broadcast(countdown);
+        if (this.notifyOn.contains(this.countdown())) {
+            this.messages.notify.sendToAll(Bukkit.getOnlinePlayers(), this.countdown());
         }
-        if (countdown <= 0) {
-            this.setCountdown(this.period);
-            this.recycleBin = new RecycleBin(new ArrayList<>());
-            Bukkit.getWorlds().stream()
-                    .map(World::getLoadedChunks)
-                    .flatMap(Arrays::stream)
+        if (this.countdown() <= 0) {
+            this.countdown(this.period);
+            AtomicCounter itemThreadCounter = AtomicCounter.create(instance -> {
+                CleanTask.this.messages.cleaned.item.sendToAll(Bukkit.getOnlinePlayers(), instance.extraCounter());
+            });
+            // 获取所有已加载的区块
+            Bukkit.getWorlds().stream().flatMap(world -> Arrays.stream(world.getLoadedChunks()))
                     .forEach(chunk -> {
-                        // 每启用一个线程就给计数器 +1，每结束一个线程就给计数器 -1，当计数器归零后代表一次清理结束
-                        synchronized (CleanTask.this.recycleBinLock) {
-                            CleanTask.this.counter++;
-                        }
+                        // 在每个已加载的区块的调度器上做清理
+                        itemThreadCounter.countUp();
                         Bukkit.getRegionScheduler().run(CleanTask.this.plugin, chunk.getWorld(), chunk.getX(), chunk.getZ(), task -> {
-                            ArrayList<ItemStack> itemStacks = Arrays.stream(chunk.getEntities())
-                                    .filter(entity -> entity instanceof Item)
-                                    .map(entity -> (Item) entity)
-                                    .filter(item -> !CleanTask.this.excludeList.contains(item.getItemStack().getType().getKey().getKey()))
-                                    .collect(
-                                            ArrayList::new,
-                                            (list, item) -> {
-                                                list.add(item.getItemStack().clone());
-                                                item.remove();
-                                            },
-                                            ArrayList::addAll
-                                    );
-                            synchronized (CleanTask.this.recycleBinLock) {
-                                CleanTask.this.recycleBin.items().addAll(itemStacks);
-                                if (--CleanTask.this.counter == 0) {
-                                    this.messages.cleaned.broadcast(CleanTask.this.recycleBin.items().size());
-                                }
+                            try {
+                                List<Item> list = Arrays.stream(chunk.getEntities()).filter(Item.class::isInstance)
+                                        .map(Item.class::cast)
+                                        .filter(item -> !CleanTask.this.plugin.getConfiguration().excludeList.getNotNull().contains(item.getItemStack().getType().key().value()))
+                                        .toList();
+                                list.forEach(Item::remove);
+                                itemThreadCounter.extraCountUp(list.size());
+                            } finally {
+                                itemThreadCounter.countDown();
                             }
                         });
                     });
+            itemThreadCounter.submitOver();
+
+            AtomicCounter entityThreadCounter = AtomicCounter.create(instance -> {
+                CleanTask.this.messages.cleaned.entities.sendToAll(Bukkit.getOnlinePlayers(), instance.extraCounter());
+            });
+            Bukkit.getWorlds().stream().flatMap(world -> Arrays.stream(world.getLoadedChunks()))
+                    .forEach(chunk -> {
+                        entityThreadCounter.countUp();
+                        Bukkit.getRegionScheduler().run(CleanTask.this.plugin, chunk.getWorld(), chunk.getX(), chunk.getZ(), task -> {
+                            try {
+                                List<Mob> list = Arrays.stream(chunk.getEntities())
+                                        .filter(Mob.class::isInstance)
+                                        .map(Mob.class::cast)
+                                        .filter(m -> {
+                                            net.minecraft.world.entity.Mob mob = ((CraftMob) m).getHandle();
+                                            return !mob.isPersistenceRequired() && !mob.requiresCustomPersistence() && mob.removeWhenFarAway(Double.MAX_VALUE);
+                                        }).toList();
+                                if (list.size() > CleanTask.this.plugin.getConfiguration().chunkLimit.getNotNull()) {
+                                    list.forEach(Mob::remove);
+                                    entityThreadCounter.extraCountUp(list.size());
+                                }
+                            } finally {
+                                entityThreadCounter.countDown();
+                            }
+                        });
+                    });
+            entityThreadCounter.submitOver();
         } else {
-            this.countdown();
+            this.doCountdown();
         }
+    }
+
+    private void handleCleanOver() {
+
     }
 }

@@ -1,33 +1,40 @@
-name: "Build"
+name: Build
 
 on:
   push:
     branches:
-      - master
+      - '*'
+    tags:
+      - '*'
   pull_request:
     branches:
-      - master
+      - '*'
 
 jobs:
-  release:
-    name: "Build"
-    runs-on: "ubuntu-latest"
+  build:
+
+    runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Validate Gradle Wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: 21
-          distribution: temurin
+          java-version: '21'
+          distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - name: Build
+        run: ./gradlew build
 
-      - name: Build with Gradle Wrapper
-        run: |
-          chmod +x gradlew
-          ./gradlew shadowJar
+      - name: Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            plugin/build/libs/GrandpaCleaner-*.jar

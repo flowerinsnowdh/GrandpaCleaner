@@ -1,5 +1,5 @@
 # GrandpaCleaner
-爷清洁，一个针对 1.21.4-Folia 的掉落物清理插件
+爷清洁，一个针对 Folia 的掉落物清理插件
 
 仅支持 Folia
 

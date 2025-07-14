@@ -15,9 +15,9 @@
  */
 package cn.flowerinsnow.grandpacleaner;
 
-import cc.carm.lib.easyplugin.gui.GUI;
+import cc.carm.lib.configuration.source.ConfigurationHolder;
 import cc.carm.lib.mineconfiguration.bukkit.MineConfiguration;
-import cc.carm.lib.mineconfiguration.bukkit.source.BukkitConfigProvider;
+import cc.carm.lib.mineconfiguration.bukkit.source.BukkitSource;
 import cn.flowerinsnow.grandpacleaner.command.CommandGrandpaCleaner;
 import cn.flowerinsnow.grandpacleaner.config.Config;
 import cn.flowerinsnow.grandpacleaner.task.CleanTask;
@@ -26,8 +26,8 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-public class GrandpaCleanerPlugin extends JavaPlugin {
-    private BukkitConfigProvider configProvider;
+public class Main extends JavaPlugin {
+    private ConfigurationHolder<BukkitSource> configProvider;
     private Config config;
 
     private CleanTask cleanTask;
@@ -41,7 +41,6 @@ public class GrandpaCleanerPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        GUI.initialize(this);
         try {
             this.reload();
         } catch (Exception e) {
