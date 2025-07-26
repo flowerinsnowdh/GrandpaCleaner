@@ -44,6 +44,10 @@ public class Config implements Configuration {
             "shulker_box", "white_shulker_box", "orange_shulker_box", "magenta_shulker_box", "light_blue_shulker_box", "yellow_shulker_box", "lime_shulker_box", "pink_shulker_box", "gray_shulker_box", "light_gray_shulker_box", "cyan_shulker_box", "purple_shulker_box", "blue_shulker_box", "brown_shulker_box", "green_shulker_box", "red_shulker_box", "black_shulker_box", "trident"
     );
 
+    @HeaderComments("排除 x ticks 内生成的物品")
+    @ConfigPath("exclude-min-age")
+    public final ConfiguredValue<Integer> excludeMinAge = ConfiguredValue.of(600);
+
     @HeaderComments("当一个区块超过多少个实体时清除实体")
     @ConfigPath("chunk-limit")
     public final ConfiguredValue<Integer> chunkLimit = ConfiguredValue.of(100);

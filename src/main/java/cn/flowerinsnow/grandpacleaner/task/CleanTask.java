@@ -20,6 +20,7 @@ import cn.flowerinsnow.grandpacleaner.config.Config;
 import cn.flowerinsnow.grandpacleaner.util.AtomicCounter;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
+import org.bukkit.craftbukkit.entity.CraftItem;
 import org.bukkit.craftbukkit.entity.CraftMob;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Mob;
@@ -34,18 +35,16 @@ public final class CleanTask implements Consumer<ScheduledTask> {
     @NotNull private final Main plugin;
     private final int period;
     @NotNull private final List<Integer> notifyOn;
-    @NotNull private final List<String> excludeList;
     @NotNull private final Config.Messages messages;
 
     private int countdown;
     @NotNull public final Object lock = new Object();
     private int taskCounter;
 
-    public CleanTask(@NotNull Main plugin, int period, @NotNull List<Integer> notifyOn, @NotNull List<String> excludeList, @NotNull Config.Messages messages) {
+    public CleanTask(@NotNull Main plugin, int period, @NotNull List<Integer> notifyOn, @NotNull Config.Messages messages) {
         this.plugin = plugin;
         this.period = period;
         this.notifyOn = Objects.requireNonNull(notifyOn);
-        this.excludeList = Objects.requireNonNull(excludeList);
         this.messages = Objects.requireNonNull(messages);
         this.countdown = period;
     }
@@ -86,6 +85,7 @@ public final class CleanTask implements Consumer<ScheduledTask> {
                             try {
                                 List<Item> list = Arrays.stream(chunk.getEntities()).filter(Item.class::isInstance)
                                         .map(Item.class::cast)
+                                        .filter(item -> ((CraftItem) item).getHandle().getAge() > CleanTask.this.plugin.getConfiguration().excludeMinAge.getNotNull())
                                         .filter(item -> !CleanTask.this.plugin.getConfiguration().excludeList.getNotNull().contains(item.getItemStack().getType().key().value()))
                                         .toList();
                                 list.forEach(Item::remove);

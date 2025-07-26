@@ -77,7 +77,7 @@ public class Main extends JavaPlugin {
         }
 
         if (this.config.enable.getNotNull()) {
-            this.cleanTask = new CleanTask(this, this.config.period.getNotNull(), this.config.notifyOn, this.config.excludeList, this.config.messages);
+            this.cleanTask = new CleanTask(this, this.config.period.getNotNull(), this.config.notifyOn, this.config.messages);
             this.cleanTaskTask = this.getServer().getGlobalRegionScheduler().runAtFixedRate(this, this.cleanTask, 1L, 20L);
         }
     }

@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "cn.flowerinsnow.grandpacleaner"
-version = "1.1.0"
+version = "1.1.1"
 
 repositories {
     if (System.getenv("GRADLE_USE_MIRROR") == "true") {
@@ -17,8 +17,8 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
-    paperweight.paperDevBundle("1.21.7-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("1.21.8-R0.1-SNAPSHOT")
     compileOnly("org.jetbrains:annotations:26.0.2")
 
     implementation("cc.carm.lib:mineconfiguration-bukkit:3.1.3")
